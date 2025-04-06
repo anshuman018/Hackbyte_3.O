@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Loader2, AlertCircle, Eye, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
-import { recordDocumentTransaction } from '../lib/blockchain';
 
 interface Institution {
   id: string;
@@ -143,17 +142,19 @@ export default function VerifierDashboard() {
     try {
       setUpdatingId(documentId);
       
-      // Record blockchain transaction
-      await recordDocumentTransaction(
-        documentId,
-        'dummy-hash-' + documentId, // You should store the real hash when document is uploaded
-        'Document Title', // You should store the real title
-        status === 'approved' ? 'approve' : 'reject',
-        verifierEmail,
-        { comments }
-      );
+      // Update document status in database
+      const { error: updateError } = await supabase
+        .from('documents')
+        .update({ 
+          status,
+          comments,
+          verified_at: new Date().toISOString()
+        })
+        .eq('id', documentId);
 
-      // Update local state to reflect change
+      if (updateError) throw updateError;
+
+      // Update local state
       setDocuments(prev => 
         prev.map(doc => 
           doc.id === documentId 

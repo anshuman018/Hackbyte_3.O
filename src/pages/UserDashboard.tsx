@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
-import { recordDocumentTransaction } from '../lib/blockchain';
 
 interface Document {
   id: string;
@@ -96,19 +95,6 @@ export default function UserDashboard() {
     const institutionId = formData.get('institution') as string;
     const email = formData.get('email') as string;
 
-    console.log('Upload attempt:', {
-      title,
-      institutionId,
-      email,
-      fileName: file.name
-    });
-
-    if (!institutionId) {
-      alert('Please select an institution');
-      setUploading(false);
-      return;
-    }
-
     try {
       const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
       if (file.size > MAX_FILE_SIZE) {
@@ -116,12 +102,8 @@ export default function UserDashboard() {
       }
 
       const hash = await calculateFileHash(file);
-      console.log('Generated hash:', hash);
-
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-
-      console.log('Attempting to upload file:', { fileName, fileSize: file.size, fileType: file.type });
 
       const { data: fileData, error: fileError } = await supabase.storage
         .from('documents')
@@ -131,16 +113,8 @@ export default function UserDashboard() {
           contentType: file.type
         });
 
-      if (fileError) {
-        console.error('Storage upload error:', fileError);
-        throw fileError;
-      }
-
-      if (!fileData?.path) {
-        throw new Error('File upload failed - no path returned');
-      }
-
-      console.log('File uploaded successfully:', fileData);
+      if (fileError) throw fileError;
+      if (!fileData?.path) throw new Error('File upload failed - no path returned');
 
       const { data: docData, error: dbError } = await supabase
         .from('documents')
@@ -155,21 +129,7 @@ export default function UserDashboard() {
         .select()
         .single();
 
-      if (dbError) {
-        console.error('Database error:', dbError);
-        throw dbError;
-      }
-
-      console.log('Document created:', docData);
-
-      // Record the transaction in our blockchain
-      await recordDocumentTransaction(
-        docData.id,
-        hash,
-        title,
-        'upload',
-        email
-      );
+      if (dbError) throw dbError;
 
       fetchDocuments();
       event.target.reset();
