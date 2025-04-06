@@ -74,6 +74,55 @@ graph TD
 - Monitor system health
 - Access blockchain analytics
 
+  🌐 **Live Demo**: [https://doccrypts.vercel.app/](https://doccrypts.vercel.app/)
+
+---
+
+## 🌟 Key Features
+
+✅ **AI-Powered Upload Verification** – Users can easily upload their documents, which are validated using advanced AI algorithms.
+
+✅ **Admin/Authorized Panel** – Enables organizations and verified personnel to manage users and monitor document workflows.
+
+✅ **Blockchain Wallet Simulation** – Track every document transaction with simulated cryptographic wallets to ensure transparency.
+
+✅ **Document Status Page** – Instantly know whether a document has been verified, pending, or rejected, with visual confirmation.
+
+✅ **Decentralized & Secure** – Leveraging decentralized technologies to eliminate forgery and enhance trust.
+
+---
+
+## 📸 Visual Preview
+
+### 🧾 1. Upload & Verification Page
+Allow users to securely upload their identity or form-based documents for AI analysis and further validation.
+
+![Upload Page](./Screenshot%202025-04-06%20013145.png)
+
+---
+
+### 🛡️ 2. Admin / Authorized Organization Panel
+Admin interface that showcases registered institutions with authority to verify and authenticate documents.
+
+![Admin Panel](./Screenshot%202025-04-06%20062018.png)
+
+---
+
+### 🔐 3. Blockchain Wallet Transaction Viewer
+View the entire lifecycle of document verification stored via simulated blockchain transactions.
+
+![Crypto Wallet](./Screenshot%202025-04-06%20062031.png)
+
+---
+
+### ✅ 4. Verified Document Confirmation
+The final stamp of trust—users can now see whether their documents are verified with digital authenticity markers.
+
+![Document Verified](./Screenshot%202025-04-06%20062658.png)
+
+---
+
+
 ## 🛠️ Technology Stack
 
 - **Frontend**: React 18, TypeScript, TailwindCSS
