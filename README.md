@@ -118,7 +118,8 @@ View the entire lifecycle of document verification stored via simulated blockcha
 ### ✅ 4. Verified Document Confirmation
 The final stamp of trust—users can now see whether their documents are verified with digital authenticity markers.
 
-![Document Verified](./Screenshot%202025-04-06%20062658.png)
+![Document Verified](.![Upload Page]
+)
 
 ---
 
