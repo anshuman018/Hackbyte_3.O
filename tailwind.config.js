@@ -5,20 +5,34 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#FF5722',
-          50: '#FFF3E0',
-          100: '#FFE0B2',
-          200: '#FFCC80',
-          300: '#FFB74D',
-          400: '#FFA726',
-          500: '#FF5722',
-          600: '#F4511E',
-          700: '#E64A19',
-          800: '#D84315',
-          900: '#BF360C',
-        },
-      },
-    },
+          dark: '#0b3030',
+          light: '#379e7e',
+          // Add more shades if needed
+          DEFAULT: '#379e7e',
+          50: '#f0f9f6',
+          100: '#d5f0e6',
+          200: '#bbe7d6',
+          300: '#92d4bc',
+          400: '#69c1a2',
+          500: '#379e7e',
+          600: '#2c7f65',
+          700: '#21604c',
+          800: '#164032',
+          900: '#0b2019'
+        }
+      }
+    }
   },
   plugins: [],
-};
+  safelist: [
+    'bg-primary-light',
+    'hover:bg-primary-light',
+    'text-primary-light',
+    'hover:text-primary-light',
+    'border-primary-light',
+    'shadow-primary-light',
+    {
+      pattern: /(bg|text|border|shadow)-primary-(light|dark)\/[0-9]+/,
+    }
+  ]
+}

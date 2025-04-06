@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
+import { recordDocumentTransaction } from '../lib/blockchain';
 
 interface Document {
   id: string;
@@ -161,6 +162,15 @@ export default function UserDashboard() {
 
       console.log('Document created:', docData);
 
+      // Record the transaction in our blockchain
+      await recordDocumentTransaction(
+        docData.id,
+        hash,
+        title,
+        'upload',
+        email
+      );
+
       fetchDocuments();
       event.target.reset();
       alert('Document uploaded successfully!');
@@ -182,66 +192,72 @@ export default function UserDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">My Documents</h1>
+        <h1 className="text-3xl font-bold text-white">My Documents</h1>
       </div>
 
       {error && (
-        <div className="p-4 mb-4 text-red-700 bg-red-100 rounded-lg">
+        <div className="p-4 mb-4 text-white bg-red-500/80 rounded-lg">
           {error}
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-[#2c505c]/40 backdrop-blur-sm rounded-lg shadow p-6 text-white">
         <form onSubmit={handleFileUpload} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <label className="block text-sm font-medium text-white">Email</label>
             <input
               type="email"
               name="email"
               required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              className="w-full p-2 border rounded mt-1 bg-[#2c505c]/40 text-white placeholder-white/50"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Document Title</label>
+            <label className="block text-sm font-medium text-white">Document Title</label>
             <input
               type="text"
               name="title"
               required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              className="w-full p-2 border rounded mt-1 bg-[#2c505c]/40 text-white placeholder-white/50"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Institution</label>
+            <label className="block text-sm font-medium text-white">Institution</label>
             <select
               name="institution"
               required
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+              className="w-full p-2 border rounded mt-1 bg-[#2c505c]/40 text-white placeholder-white/50"
             >
-              <option value="">Select Institution</option>
+              <option value="" className="bg-[#2c505c] text-white">Select Institution</option>
               {institutions.map(inst => (
-                <option key={inst.id} value={inst.id}>{inst.name}</option>
+                <option 
+                  key={inst.id} 
+                  value={inst.id} 
+                  className="bg-[#2c505c] text-white"
+                >
+                  {inst.name}
+                </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Document (PDF)</label>
+            <label className="block text-sm font-medium text-white">Document (PDF)</label>
             <input
               type="file"
               name="file"
               accept=".pdf"
               required
-              className="mt-1 block w-full"
+              className="w-full p-2 border rounded mt-1 bg-[#2c505c]/40 text-white placeholder-white/50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-[#2c505c]/40 file:text-white hover:file:bg-[#379e7e] transition-all"
             />
           </div>
 
           <button
             type="submit"
             disabled={uploading}
-            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+            className="bg-[#0b3030] hover:bg-[#379e7e] text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors duration-200"
           >
             {uploading ? (
               <Loader2 className="animate-spin" size={20} />
@@ -253,9 +269,9 @@ export default function UserDashboard() {
         </form>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-semibold text-gray-800">Uploaded Documents</h2>
+      <div className="bg-[#2c505c]/40 backdrop-blur-sm rounded-lg shadow overflow-hidden text-white">
+        <div className="p-6 border-b border-white/20">
+          <h2 className="text-xl font-semibold text-white">Uploaded Documents</h2>
         </div>
         {loading ? (
           <div className="p-6 text-center">
@@ -267,30 +283,30 @@ export default function UserDashboard() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-white/20">
+              <thead className="bg-[#2c505c]/40">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Title</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Comments</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-[#2c505c]/40 divide-y divide-white/20">
                 {documents.map((doc) => (
                   <tr key={doc.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{doc.title}</div>
+                      <div className="text-sm font-medium text-white">{doc.title}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusColors[doc.status]}`}>
                         {doc.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                       {format(new Date(doc.created_at), 'MMM d, yyyy')}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
                       {doc.comments || '-'}
                     </td>
                   </tr>

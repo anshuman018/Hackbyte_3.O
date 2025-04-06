@@ -2,6 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Loader2, AlertCircle, Eye, FileText } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
+import { recordDocumentTransaction } from '../lib/blockchain';
+
+interface Institution {
+  id: string;
+  name: string;
+}
 
 interface Document {
   id: string;
@@ -10,8 +16,9 @@ interface Document {
   created_at: string;
   uploaded_by_email: string;
   file_path: string;
-  institution: { name: string };
-  institution_id: string; // Add this field
+  hash?: string;
+  institution_id: string;
+  institution: Institution | Institution[] | null;
 }
 
 export default function VerifierDashboard() {
@@ -77,14 +84,6 @@ export default function VerifierDashboard() {
     try {
       console.log('Fetching documents for institution:', institutionId);
       
-      // First, check all documents in the system
-      const { data: allDocs, error: countError } = await supabase
-        .from('documents')
-        .select('*');
-      
-      console.log('All documents in system:', allDocs);
-
-      // Then fetch documents for this institution
       const { data, error } = await supabase
         .from('documents')
         .select(`
@@ -94,11 +93,9 @@ export default function VerifierDashboard() {
           created_at,
           uploaded_by_email,
           file_path,
+          hash,
           institution_id,
-          institution:institutions (
-            id,
-            name
-          )
+          institution:institutions(id, name)
         `)
         .eq('institution_id', institutionId);
 
@@ -109,24 +106,31 @@ export default function VerifierDashboard() {
       
       console.log('Institution documents:', data);
       
-      // Transform the data to match the Document interface
-      const formattedDocuments = (data || []).map(doc => ({
-        ...doc,
-        institution: { 
-          name: doc.institution?.[0]?.name || 'Unknown Institution' 
+      // Fix institution processing to handle both array and direct object formats
+      const formattedDocuments = (data || []).map(doc => {
+        let institutionName = 'Unknown Institution';
+        let institutionId = doc.institution_id;
+        
+        if (doc.institution) {
+          if (Array.isArray(doc.institution)) {
+            institutionName = doc.institution[0]?.name || 'Unknown Institution';
+            institutionId = doc.institution[0]?.id || doc.institution_id;
+          } else if (typeof doc.institution === 'object') {
+            institutionName = (doc.institution as any).name || 'Unknown Institution';
+            institutionId = (doc.institution as any).id || doc.institution_id;
+          }
         }
-      }));
-      
-      setDocuments(formattedDocuments);
-
-      // Set debug info
-      setDebug({
-        allDocuments: allDocs,
-        institutionDocuments: data,
-        institutionId,
-        verifierId: verifierId
+        
+        return {
+          ...doc,
+          institution: {
+            id: institutionId,
+            name: institutionName
+          }
+        };
       });
-
+      
+      setDocuments(formattedDocuments as Document[]);
     } catch (error) {
       console.error('Error fetching documents:', error);
       setError('An error occurred while fetching documents. Please try again.');
@@ -137,37 +141,33 @@ export default function VerifierDashboard() {
 
   async function handleVerification(documentId: string, status: 'approved' | 'rejected', comments?: string) {
     try {
-      console.log('Updating document:', { documentId, status, comments }); // Debug log
+      setUpdatingId(documentId);
+      
+      // Record blockchain transaction
+      await recordDocumentTransaction(
+        documentId,
+        'dummy-hash-' + documentId, // You should store the real hash when document is uploaded
+        'Document Title', // You should store the real title
+        status === 'approved' ? 'approve' : 'reject',
+        verifierEmail,
+        { comments }
+      );
 
-      const { data, error } = await supabase
-        .from('documents')
-        .update({ 
-          status: status,
-          comments: comments,
-          verified_at: new Date().toISOString(),
-          verifier_id: verifierId
-        })
-        .eq('id', documentId)
-        .select();
-
-      if (error) {
-        console.error('Error updating document:', error);
-        throw error;
-      }
-
-      console.log('Document updated:', data); // Debug log
-
-      // Refresh documents list
-      if (verifierId) {
-        fetchDocuments(data[0].institution_id);
-      }
+      // Update local state to reflect change
+      setDocuments(prev => 
+        prev.map(doc => 
+          doc.id === documentId 
+            ? {...doc, status, comments, verified_at: new Date().toISOString()}
+            : doc
+        )
+      );
 
       setToast({ message: `Document ${status} successfully`, type: 'success' });
-      setTimeout(() => setToast(null), 3000);
     } catch (error) {
       console.error('Error updating document:', error);
-      setToast({ message: 'Failed to update document status. Please try again.', type: 'error' });
-      setTimeout(() => setToast(null), 3000);
+      setToast({ message: 'Failed to update document status', type: 'error' });
+    } finally {
+      setUpdatingId(null);
     }
   }
 
@@ -217,8 +217,8 @@ export default function VerifierDashboard() {
   if (!verifierEmail) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold text-gray-900">Verifier Login</h1>
-        <div className="bg-white rounded-lg shadow p-6">
+        <h1 className="text-3xl font-bold text-white">Verifier Login</h1>
+        <div className="bg-[#2c505c]/40 backdrop-blur-sm rounded-lg shadow p-6">
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-700">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -233,17 +233,18 @@ export default function VerifierDashboard() {
             fetchVerifierId(email);
           }} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Email</label>
+              <label className="block text-sm font-medium text-white">Email</label>
               <input
                 type="email"
                 name="email"
                 required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500"
+                className="w-full p-2 border rounded mt-1 bg-[#2c505c]/40 text-white placeholder-white/50"
+                placeholder="Enter your email"
               />
             </div>
             <button
               type="submit"
-              className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg"
+              className="w-full bg-[#0b3030] hover:bg-[#379e7e] text-white px-4 py-2 rounded-lg transition-colors duration-200"
             >
               Login
             </button>
@@ -263,7 +264,7 @@ export default function VerifierDashboard() {
         </div>
       )}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Document Verification</h1>
+        <h1 className="text-3xl font-bold text-white">Document Verification</h1>
         <button
           onClick={() => {
             localStorage.removeItem('verifierEmail');
@@ -271,7 +272,7 @@ export default function VerifierDashboard() {
             setVerifierId(null);
             setError(null);
           }}
-          className="text-gray-600 hover:text-gray-900"
+          className="text-gray-300 hover:text-white transition-colors duration-200"
         >
           Logout
         </button>
@@ -285,54 +286,54 @@ export default function VerifierDashboard() {
       )}
 
       {debug && (
-        <div className="p-4 bg-gray-50 rounded-lg text-sm font-mono">
+        <div className="p-4 bg-[#2c505c]/40 rounded-lg text-sm font-mono text-white">
           <pre>{JSON.stringify(debug, null, 2)}</pre>
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-[#2c505c]/40 backdrop-blur-sm rounded-lg shadow overflow-hidden">
         {loading ? (
           <div className="p-6 text-center">
-            <Loader2 className="animate-spin mx-auto" />
+            <Loader2 className="animate-spin mx-auto text-white" />
           </div>
         ) : documents.length === 0 ? (
-          <div className="p-6 text-center text-gray-500">
+          <div className="p-6 text-center text-gray-300">
             No pending documents to verify
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-700">
+              <thead className="bg-[#1c3038]">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Uploaded By</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Title</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Uploaded By</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-700">
                 {documents.map((doc) => (
                   <tr key={doc.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{doc.title}</div>
+                      <div className="text-sm font-medium text-white">{doc.title}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       {doc.uploaded_by_email}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                       {format(new Date(doc.created_at), 'MMM d, yyyy')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button
                         onClick={() => downloadDocument(doc.file_path, doc.title)}
-                        className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                        className="bg-[#0b3030] hover:bg-[#379e7e] text-white px-3 py-1 rounded flex items-center gap-1 transition-colors duration-200"
                       >
                         <FileText className="h-5 w-5" />
                         Download
                       </button>
                       <button
                         onClick={() => viewDocument(doc.file_path)}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="bg-[#0b3030] hover:bg-[#379e7e] text-white px-3 py-1 rounded transition-colors duration-200"
                       >
                         <Eye className="h-5 w-5" />
                       </button>
@@ -344,7 +345,7 @@ export default function VerifierDashboard() {
                           setUpdatingId(null);
                         }}
                         disabled={updatingId === doc.id}
-                        className="text-green-600 hover:text-green-900 disabled:opacity-50"
+                        className="bg-[#0b3030] hover:bg-[#379e7e] text-white px-3 py-1 rounded disabled:opacity-50 transition-colors duration-200"
                       >
                         {updatingId === doc.id ? (
                           <Loader2 className="h-5 w-5 animate-spin" />
@@ -362,7 +363,7 @@ export default function VerifierDashboard() {
                           setUpdatingId(null);
                         }}
                         disabled={updatingId === doc.id}
-                        className="text-red-600 hover:text-red-900 disabled:opacity-50"
+                        className="bg-[#0b3030] hover:bg-[#379e7e] text-white px-3 py-1 rounded disabled:opacity-50 transition-colors duration-200"
                       >
                         {updatingId === doc.id ? (
                           <Loader2 className="h-5 w-5 animate-spin" />

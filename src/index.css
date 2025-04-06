@@ -1,3 +1,70 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply m-0 p-0 overflow-x-hidden text-white bg-[#0b3030];
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-[#0b3030];
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-primary-500/50 rounded-full hover:bg-primary-500;
+  }
+}
+
+@layer components {
+  /* Card styles */
+  .card {
+    @apply bg-[#2c505c]/40 backdrop-blur-md rounded-lg shadow-lg border border-white/10;
+  }
+
+  /* Button styles */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 
+           rounded-lg font-medium transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply bg-primary-dark hover:bg-primary-light text-white
+           shadow-lg hover:shadow-xl hover:shadow-primary-500/20;
+  }
+
+  /* Input styles */
+  .input {
+    @apply bg-white/10 border border-white/20 rounded-lg px-4 py-2
+           text-white placeholder-white/50 focus:outline-none
+           focus:border-primary-light focus:ring-1 focus:ring-primary-light;
+  }
+}
+
+/* Glass morphism effects */
+.glass {
+  @apply bg-white/10 backdrop-blur-md border border-white/10;
+}
+
+.glass-dark {
+  @apply bg-primary-dark/60 backdrop-blur-md border border-white/10;
+}
+
+/* Text colors with opacity */
+.text-white-high {
+  @apply text-white/90;
+}
+
+.text-white-medium {
+  @apply text-white/70;
+}
+
+.text-white-low {
+  @apply text-white/50;
+}

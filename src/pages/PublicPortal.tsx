@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Search, Loader2, FileText, CheckCircle, XCircle, Upload, AlertTriangle } from 'lucide-react';
+import { Search, Loader2, FileText, CheckCircle, XCircle, Upload, AlertTriangle, Hexagon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
+import { verifyDocumentOnBlockchain, getTransactionHistory } from '../lib/blockchain';
+import BlockchainTransactionLog from '../components/BlockchainTransactionLog';
 
 interface Document {
   id: string;
@@ -19,6 +21,8 @@ export default function PublicPortal() {
   const [document, setDocument] = useState<Document | null>(null);
   const [error, setError] = useState('');
   const [verificationResult, setVerificationResult] = useState<'authentic' | 'not-authentic' | null>(null);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [showBlockchainDetails, setShowBlockchainDetails] = useState(false);
 
   async function calculateFileHash(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -55,13 +59,28 @@ export default function PublicPortal() {
     setError('');
     setDocument(null);
     setVerificationResult(null);
+    setTransactions([]);
     
     try {
       // Calculate hash of uploaded document
       const hash = await calculateFileHash(file);
       console.log('Generated hash:', hash);
       
-      // Search for document with matching hash
+      try {
+        // First check the blockchain record
+        const blockchainResult = await verifyDocumentOnBlockchain(hash);
+        console.log('Blockchain verification result:', blockchainResult);
+        
+        // If verified on blockchain, show transactions
+        if (blockchainResult.verified && blockchainResult.transactions) {
+          setTransactions(blockchainResult.transactions);
+        }
+      } catch (blockchainError) {
+        console.error('Blockchain verification error:', blockchainError);
+        // Continue with database verification even if blockchain fails
+      }
+      
+      // Search for document with matching hash in database
       const { data, error } = await supabase
         .from('documents')
         .select(`
@@ -80,6 +99,17 @@ export default function PublicPortal() {
 
       setDocument(data);
       setVerificationResult('authentic');
+      
+      // Get full transaction history
+      if (data?.id) {
+        try {
+          const history = await getTransactionHistory(data.id);
+          setTransactions(history);
+        } catch (historyError) {
+          console.error('Error fetching transaction history:', historyError);
+          // Continue showing the document even if transaction history fails
+        }
+      }
     } catch (error) {
       console.error('Error verifying document:', error);
       setError('An error occurred while verifying the document. Please try again.');
@@ -103,18 +133,18 @@ export default function PublicPortal() {
   return (
     <div className="space-y-8">
       <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold text-gray-900">Document Verification Portal</h1>
-        <p className="text-lg text-gray-600">Verify the authenticity of your documents</p>
+        <h1 className="text-4xl font-bold text-white">Decentralized Document Verification Portal</h1>
+        <p className="text-lg text-white/80">Verify the authenticity of your documents</p>
       </div>
 
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
+        <div className="bg-[#2c505c]/40 backdrop-blur-sm rounded-lg shadow p-6 mb-8">
           <form onSubmit={handleFileUpload} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-bold text-white mb-2">
                 Upload a document to verify its authenticity
               </label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+              <div className="border-2 border-white/20 border-dashed rounded-lg p-6 text-center">
                 <input
                   type="file"
                   className="hidden"
@@ -123,11 +153,11 @@ export default function PublicPortal() {
                 />
                 <label htmlFor="file-upload" className="cursor-pointer">
                   <div className="flex flex-col items-center">
-                    <Upload className="h-10 w-10 text-gray-400" />
-                    <p className="mt-2 text-sm text-gray-600">
+                    <Upload className="h-10 w-10 text-white/70" />
+                    <p className="mt-2 text-sm text-white">
                       Click to upload or drag and drop
                     </p>
-                    <p className="text-xs text-gray-500">PDF up to 5MB</p>
+                    <p className="text-xs text-white/60">PDF up to 5MB</p>
                   </div>
                 </label>
               </div>
@@ -135,7 +165,7 @@ export default function PublicPortal() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg"
+              className="w-full flex items-center justify-center gap-2 bg-primary-dark hover:bg-primary-light transition-colors duration-200 text-white px-6 py-3 rounded-lg font-medium shadow-lg hover:shadow-xl"
             >
               {loading ? (
                 <Loader2 className="animate-spin h-5 w-5" />
@@ -185,7 +215,7 @@ export default function PublicPortal() {
         )}
 
         {document && (
-          <div className="mt-8 bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="mt-8 bg-[#2c505c]/40 backdrop-blur-sm rounded-lg shadow-lg overflow-hidden">
             <div className="p-6 bg-green-50 border-b border-green-200">
               <div className="flex items-start gap-4">
                 <div className="bg-green-100 p-3 rounded-full">
@@ -240,6 +270,21 @@ export default function PublicPortal() {
                 <div>
                   <p className="text-sm text-gray-500">Comments</p>
                   <p className="mt-1 text-gray-700">{document.comments}</p>
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setShowBlockchainDetails(!showBlockchainDetails)}
+                className="text-primary-light hover:text-primary-dark transition-colors duration-200 text-sm font-medium flex items-center"
+              >
+                <Hexagon className="h-4 w-4 mr-1" />
+                {showBlockchainDetails ? 'Hide' : 'Show'} Blockchain Details
+              </button>
+              
+              {showBlockchainDetails && (
+                <div className="mt-4">
+                  <BlockchainTransactionLog transactions={transactions} />
                 </div>
               )}
             </div>

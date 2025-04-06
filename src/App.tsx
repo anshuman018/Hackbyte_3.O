@@ -5,19 +5,26 @@ import VerifierDashboard from './pages/VerifierDashboard';
 import PublicPortal from './pages/PublicPortal';
 import AdminPanel from './pages/AdminPanel';
 import Navigation from './components/Navigation';
+import SplineBackground from './components/SplineBackground';
 
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-orange-50">
-        <Navigation />
-        <div className="container mx-auto px-4 py-8">
-          <Routes>
-            <Route path="/" element={<PublicPortal />} />
-            <Route path="/user" element={<UserDashboard />} />
-            <Route path="/verifier" element={<VerifierDashboard />} />
-            <Route path="/admin" element={<AdminPanel />} />
-          </Routes>
+      <div className="relative min-h-screen bg-[#0b3030]">
+        {/* Spline Background */}
+        <SplineBackground />
+        
+        {/* Content Layer */}
+        <div className="relative z-10">
+          <Navigation />
+          <main className="container mx-auto px-6 pt-24 pb-12 min-h-screen">
+            <Routes>
+              <Route path="/" element={<PublicPortal />} />
+              <Route path="/user" element={<UserDashboard />} />
+              <Route path="/verifier" element={<VerifierDashboard />} />
+              <Route path="/admin" element={<AdminPanel />} />
+            </Routes>
+          </main>
         </div>
       </div>
     </Router>
